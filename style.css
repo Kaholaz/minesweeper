@@ -1,0 +1,31 @@
+#game-board {
+    display: table;
+}
+
+.grid-row {
+    display: flex;
+}
+
+.cell {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    box-sizing:border-box;
+    border:1px solid black;
+}
+
+.NORMAL, .FLAGGED {
+    background-color:  lightgoldenrodyellow;
+}
+
+.NORMAL:hover, .FLAGGED:hover {
+    background-color: #ffffed;
+}
+
+.NORMAL:active, .FLAGGED:active {
+    background-color: #d7d79b;
+}
+
+.REVEALED, .EXPLODED {
+    background-color: #fffffb;
+}
