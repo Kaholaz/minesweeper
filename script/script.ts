@@ -1,4 +1,4 @@
-import { Board } from "./classes.js";
+import { Board } from "./game/board.js";
 
 
 let board = new Board(30, 16, 99);
