@@ -36,6 +36,18 @@ class Cell {
         return true;
     }
 
+    public flag() {
+        if (this.state === CellState.NORMAL) {
+            this.setState(CellState.FLAGGED);
+            return;
+        }
+
+        if (this.state === CellState.FLAGGED) {
+            this.setState(CellState.NORMAL);
+            return;
+        }
+    }
+
     private setText(text: string) {
         let cellHtml = document.getElementById("cell" + this.id.toString());
         if (cellHtml === null) throw "Could not find cell element";
@@ -57,6 +69,8 @@ class Cell {
 
         if (state === CellState.EXPLODED) this.setText("*");
         if (state === CellState.REVEALED && this.adjacentBombs) this.setText(this.adjacentBombs.toString());
+        if (state === CellState.NORMAL) this.setText("");
+        if (state === CellState.FLAGGED) this.setText("F");
 
         this.state = state;
     }
@@ -119,6 +133,8 @@ export class Board {
 
             let coordinate = new Coordinate(i % this.width, Math.floor(i / this.width));
             cellHtml.addEventListener("click", () => {this.revealCell(coordinate)});
+            cellHtml.addEventListener("contextmenu", () => {this.flagCell(coordinate)})
+            cellHtml.oncontextmenu = function(e: MouseEvent){e.preventDefault(); e.stopPropagation();}
 
             row.appendChild(cellHtml);
             this.cells[i] = newCell
@@ -227,6 +243,15 @@ export class Board {
                 cell.reveal();
             }
         })
+    }
+
+    private flagCell(coordinate: Coordinate) {
+        let cell = this.getCell(coordinate);
+        if (![CellState.NORMAL, CellState.FLAGGED].includes(cell.getState())) {
+            return;
+        }
+
+        cell.flag();
     }
 
     private getAdjacentCells(coordinate: Coordinate) : Array<Coordinate> {
