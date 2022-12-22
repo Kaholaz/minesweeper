@@ -94,6 +94,9 @@ export class Board {
     readonly width: number;
     readonly height: number;
     readonly bombs: number;
+    private intervalId: number = 0;
+    private elapsedSeconds: number = 0;
+    private unflaggedBombs: number = -1;
     private revealedCells: number;
     private gameState: GameState;
 
@@ -106,6 +109,8 @@ export class Board {
         this.revealedCells = 0;
         this.gameState = GameState.INIT;
         this.cells = new Array(width * height);
+        this.setUnflaggedBombs(bombs);
+        this.resetTimer();
         this.initBoard();
     }
 
@@ -131,7 +136,7 @@ export class Board {
             let newCell = new Cell(i);
             let cellHtml = newCell.getCellHtml();
 
-            let coordinate = new Coordinate(i % this.width, Math.floor(i / this.width));
+            let coordinate = this.idToCoordinate(i);
             cellHtml.addEventListener("click", () => {this.revealCell(coordinate)});
             cellHtml.addEventListener("contextmenu", () => {this.flagCell(coordinate)})
             cellHtml.oncontextmenu = function(e: MouseEvent){e.preventDefault(); e.stopPropagation();}
@@ -182,7 +187,12 @@ export class Board {
         }
 
         if (this.gameState === GameState.READY) {
+            // Initialize bombs
             this.placeBombs(coordinate);
+
+            this.startTimer();
+
+            // We are now playing :)
             this.gameState = GameState.PLAYING;
         }
         // Game state is now PLAYING.
@@ -203,6 +213,7 @@ export class Board {
         if (lost) {
             this.revealAllBombs();
             this.gameState = GameState.LOST;
+            this.stopTimer();
             return;
         }
 
@@ -211,6 +222,7 @@ export class Board {
 
         if (this.revealedCells === this.width * this.height - this.bombs) {
             this.gameState = GameState.WON;
+            this.stopTimer();
         }
     }
 
@@ -235,7 +247,40 @@ export class Board {
             return;
         }
 
+        cell.getState() == CellState.NORMAL ? 
+            this.setUnflaggedBombs(this.unflaggedBombs - 1) : this.setUnflaggedBombs(this.unflaggedBombs + 1);
+
         cell.flag();
+    }
+
+    private getTimerElement() : HTMLElement {
+        const timer = document.getElementById("timer");
+        if (timer === null) throw "Someone deleted the timer";
+
+        return timer;
+    }
+
+    public resetTimer() {
+        this.stopTimer();
+        this.intervalId = 0;
+
+        let timer = this.getTimerElement();
+        this.elapsedSeconds = 0;
+        timer.innerHTML = "0";
+    }
+
+    private startTimer() {
+        let timer = this.getTimerElement();
+
+        this.elapsedSeconds = 0;
+        this.intervalId = setInterval((timer: HTMLElement) => {
+            ++this.elapsedSeconds;
+            timer.innerHTML = this.elapsedSeconds.toString();
+        }, 1000, timer);
+    }
+
+    private stopTimer() {
+        if (this.intervalId !== 0) clearInterval(this.intervalId);
     }
 
     private getAdjacentCells(coordinate: Coordinate) : Array<Coordinate> {
@@ -294,5 +339,13 @@ export class Board {
 
     private coordinateToId(coordinate: Coordinate) : number {
         return coordinate.x + coordinate.y * this.width;
+    }
+
+    private setUnflaggedBombs(unflaggedBombs: number) {
+        let unflaggedElement = document.getElementById("remaining-bombs");
+        if (unflaggedElement === null) throw "Someone deleted the unflagged bombs counter";
+
+        unflaggedElement.innerHTML = unflaggedBombs.toString();
+        this.unflaggedBombs = unflaggedBombs
     }
 }

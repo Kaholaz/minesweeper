@@ -1,3 +1,13 @@
+#game {
+    margin: auto;
+    display: table;
+}
+
+#game-info {
+    display: flex;
+    justify-content: space-between;
+}
+
 #game-board {
     display: table;
 }
