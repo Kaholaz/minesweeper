@@ -188,13 +188,17 @@ export class Board {
         // Game state is now PLAYING.
 
         let cell = this.getCell(coordinate);
-
         if (![CellState.NORMAL, CellState.REVEALED].includes(cell.getState())) {
             return;
         }
         
-        // Revealing revealed cell does nothing.
-        if (cell.getState() === CellState.NORMAL) ++this.revealedCells;
+        if (cell.getState() === CellState.REVEALED) {
+            this.revealRevealedCell(coordinate);
+            return;
+        }
+
+        // Cell state is NORMAL
+        ++this.revealedCells;
         let lost = !cell.reveal()
         if (lost) {
             this.revealAllBombs();
@@ -202,7 +206,8 @@ export class Board {
             return;
         }
 
-        this.revealRevealedCell(coordinate);
+        // Recursively reveal cells where adjacent bombs is 0 and their neighbors.
+        if (cell.adjacentBombs === 0) this.revealRevealedCell(coordinate);
 
         if (this.revealedCells === this.width * this.height - this.bombs) {
             this.gameState = GameState.WON;
@@ -210,31 +215,10 @@ export class Board {
     }
 
     private revealRevealedCell(coordinate: Coordinate) {
-        this.calculateRecursivelyRevealable(coordinate)
+        if (this.getCell(coordinate).adjacentBombs > this.calculateAdjacentFlags(coordinate)) return;
+
+        this.getAdjacentCells(coordinate)
             .forEach(c => {if (this.getCell(c).getState() === CellState.NORMAL) this.revealCell(c);});
-    }
-
-    private calculateRecursivelyRevealable(coordinate: Coordinate) : Array<Coordinate> {
-        let out = Array.from(this.innerRecursivelyRevealable(coordinate, new Set()));
-        
-        return out
-            .map(c => {return this.idToCoordinate(c)})
-            .filter(c => {return this.getCell(c).getState() === CellState.NORMAL});
-    }
-
-    private innerRecursivelyRevealable(coordinate: Coordinate, seen: Set<number>) : Set<number> {
-        let cell = this.getCell(coordinate);
-
-        if (seen.has(cell.id)) {
-            return seen;
-        }
-
-        seen.add(cell.id);
-        if (cell.adjacentBombs === this.calculateAdjacentFlags(coordinate)) {
-            this.getAdjacentCells(coordinate).forEach(c => {this.innerRecursivelyRevealable(c, seen)})
-        }
-
-        return seen
     }
 
     private revealAllBombs() {
