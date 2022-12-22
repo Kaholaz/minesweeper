@@ -26,11 +26,8 @@ class Cell {
             return true;
         }
 
-        let text = this.adjacentBombs.toString();
-
         if (this.isBomb) {
             this.setState(CellState.EXPLODED);
-            this.setText("*");
             return false;
         }
 
@@ -59,7 +56,7 @@ class Cell {
         cellDiv.classList.add(CellState[state]);
 
         if (state === CellState.EXPLODED) this.setText("*");
-        if (state === CellState.REVEALED) this.setText(this.adjacentBombs.toString());
+        if (state === CellState.REVEALED && this.adjacentBombs) this.setText(this.adjacentBombs.toString());
 
         this.state = state;
     }
@@ -174,24 +171,21 @@ export class Board {
         }
         // Game state is now PLAYING.
 
-        console.log(GameState[this.gameState]);
         let cell = this.getCell(coordinate);
 
-        
         if (![CellState.NORMAL, CellState.REVEALED].includes(cell.getState())) {
             return;
         }
-
-        // Deal with NORMAL cell state (revealing a revealed cell does nothing)
+        
+        // Revealing revealed cell does nothing.
+        if (cell.getState() === CellState.NORMAL) ++this.revealedCells;
         let lost = !cell.reveal()
         if (lost) {
             this.revealAllBombs();
             this.gameState = GameState.LOST;
             return;
         }
-        ++this.revealedCells;
 
-        // Deal with REVEALED cell state
         this.revealRevealedCell(coordinate);
 
         if (this.revealedCells === this.width * this.height - this.bombs) {
@@ -200,20 +194,37 @@ export class Board {
     }
 
     private revealRevealedCell(coordinate: Coordinate) {
-        if (this.calculateAdjacentFlags(coordinate) !== this.getCell(coordinate).adjacentBombs) {
-            return;
-        }
-        
-        this.getAdjacentCells(coordinate)
-            .forEach(c => {this.revealCell(c)});
+        this.calculateRecursivelyRevealable(coordinate)
+            .forEach(c => {if (this.getCell(c).getState() === CellState.NORMAL) this.revealCell(c);});
     }
 
+    private calculateRecursivelyRevealable(coordinate: Coordinate) : Array<Coordinate> {
+        let out = Array.from(this.innerRecursivelyRevealable(coordinate, new Set()));
+        
+        return out
+            .map(c => {return this.idToCoordinate(c)})
+            .filter(c => {return this.getCell(c).getState() === CellState.NORMAL});
+    }
 
+    private innerRecursivelyRevealable(coordinate: Coordinate, seen: Set<number>) : Set<number> {
+        let cell = this.getCell(coordinate);
+
+        if (seen.has(cell.id)) {
+            return seen;
+        }
+
+        seen.add(cell.id);
+        if (cell.adjacentBombs === this.calculateAdjacentFlags(coordinate)) {
+            this.getAdjacentCells(coordinate).forEach(c => {this.innerRecursivelyRevealable(c, seen)})
+        }
+
+        return seen
+    }
 
     private revealAllBombs() {
         this.cells.forEach( (cell) => {
             if (cell.getState() === CellState.NORMAL && cell.isBomb) {
-                cell.reveal;
+                cell.reveal();
             }
         })
     }
@@ -265,7 +276,14 @@ export class Board {
             throw "Cell is out of bounds!";
         }        
 
-        let i = coordinate.x + coordinate.y * this.width;
-        return this.cells[i];
+        return this.cells[this.coordinateToId(coordinate)];
+    }
+
+    private idToCoordinate(id: number) : Coordinate {
+        return new Coordinate(id % this.width, Math.floor(id / this.width))
+    }
+
+    private coordinateToId(coordinate: Coordinate) : number {
+        return coordinate.x + coordinate.y * this.width;
     }
 }
