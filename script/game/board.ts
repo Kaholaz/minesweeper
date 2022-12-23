@@ -32,7 +32,7 @@ export class Board {
     private revealedCells: number;
     private gameState: GameState;
 
-    private cells: Array<Cell>
+    public cells: Array<Cell>
 
     public constructor (width: number, height: number, bombs: number) {
         this.width = width;
@@ -113,7 +113,7 @@ export class Board {
     }
 
 
-    private revealCell(coordinate: Coordinate) {
+    public revealCell(coordinate: Coordinate) {
         if ([GameState.LOST, GameState.WON].includes(this.gameState)) {
             return;
         }
@@ -215,7 +215,7 @@ export class Board {
         if (this.intervalId !== 0) clearInterval(this.intervalId);
     }
 
-    private getAdjacentCells(coordinate: Coordinate) : Array<Coordinate> {
+    public getAdjacentCells(coordinate: Coordinate) : Array<Coordinate> {
         let out = new Array<Coordinate>();
         for (let x = -1; x <= 1; ++x) {
             for (let y = -1; y <= 1; ++y) {
@@ -257,7 +257,7 @@ export class Board {
         return true;
     }
 
-    private getCell(coordinate: Coordinate) : Cell {
+    public getCell(coordinate: Coordinate) : Cell {
         if (!this.isInBounds(coordinate)) {
             throw "Cell is out of bounds!";
         }        
@@ -265,11 +265,11 @@ export class Board {
         return this.cells[this.coordinateToId(coordinate)];
     }
 
-    private idToCoordinate(id: number) : Coordinate {
+    public idToCoordinate(id: number) : Coordinate {
         return new Coordinate(id % this.width, Math.floor(id / this.width))
     }
 
-    private coordinateToId(coordinate: Coordinate) : number {
+    public coordinateToId(coordinate: Coordinate) : number {
         return coordinate.x + coordinate.y * this.width;
     }
 

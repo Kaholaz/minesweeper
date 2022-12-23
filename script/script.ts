@@ -1,3 +1,4 @@
+import { Engine } from "./engine.js";
 import { Board } from "./game/board.js";
 
 
@@ -8,3 +9,6 @@ document.getElementById("reset")?.addEventListener("click", () => {
     board.resetTimer();
     board = new Board(30, 16, 99);
 })
+
+export let engine = new Engine(board);
+engine.revealRevealable();
