@@ -47,10 +47,25 @@ export class Engine {
         }
     }
 
+    public flagBombs() {
+        this.initGroups();
+    }
+
+    public revealOne() {
+        this.initGroups();
+        let nextMove = this.nextMove();
+        if (nextMove === null) return;
+        this.board.revealCell(nextMove);
+    }
+
     private nextMove() : Coordinate | null {
         let cellId = this.groups.popSafeCell();
-        if (cellId === null) return null;
+        if (cellId !== null) return this.board.idToCoordinate(cellId);
+        
+        this.initGroups();
+        cellId = this.groups.popSafeCell();
 
+        if (cellId === null) return null;
         return this.board.idToCoordinate(cellId);
     }
 }
