@@ -21,29 +21,25 @@ export class Engine {
                 .filter(c => this.board.getCell(c).getState() !== CellState.REVEALED)
                 .map(c => {return this.board.coordinateToId(c)}));
             this.groups.insert(this.board.cells[id].adjacentBombs, set);
-            if (this.groups.safeSpots.length) return;
         }
     }
 
     public revealRevealable() {
-        let progress = true;
-        while (progress) {
-            // Recalculate moves
-            this.initGroups();
-            progress = false;
-            while (true) {
-                let nextMove = this.nextMove();
-
-                // No safe cell
-                if (nextMove === null) break;
-
-                // Cell is revealed and progress is made
-                this.board.revealCell(nextMove);
-                progress = true;
-
-                // Don't loop on starting move
-                if (nextMove.x === 0 && nextMove.y === 0) break
+        this.initGroups();
+        let nextMove: Coordinate | null;
+        while ((nextMove = this.nextMove()) !== null) {
+            this.board.revealCell(nextMove);            
+            if (this.board.getCell(nextMove).adjacentBombs === 0) {
+                this.initGroups()
+                continue;
             }
+
+            let set = new Set(
+                this.board.getAdjacentCells(nextMove)
+                .filter(c => this.board.getCell(c).getState() !== CellState.REVEALED)
+                .map(c => {return this.board.coordinateToId(c)}));
+
+            this.groups.insert(this.board.getCell(nextMove).adjacentBombs, set);
         }
     }
 
@@ -60,11 +56,6 @@ export class Engine {
 
     private nextMove() : Coordinate | null {
         let cellId = this.groups.popSafeCell();
-        if (cellId !== null) return this.board.idToCoordinate(cellId);
-        
-        this.initGroups();
-        cellId = this.groups.popSafeCell();
-
         if (cellId === null) return null;
         return this.board.idToCoordinate(cellId);
     }
@@ -73,34 +64,28 @@ export class Engine {
 class Groups {
     private groups: Array<Array<Set<number>>>
     private indexBounds: Array<Array<number>>
+    private hasSuggested: boolean
     private board: Board // Temporary for debugging purposes
-
-    public safeSpots: Array<number>
 
     public constructor(board: Board) {
         this.board = board;
+        this.hasSuggested = false;
         this.groups = new Array(9);
-        for (let i = 1; i < 9; ++i) this.groups[i] = new Array();
+        for (let i = 0; i < 9; ++i) this.groups[i] = new Array();
         this.indexBounds = Array(9);
         for (let i = 0; i < 9; ++i) this.indexBounds[i] = [...[0, 0, 0, 0, 0, 0, 0, 0, 0]];
-
-        this.safeSpots = new Array();
     }
 
     public insert(bombs: number, set: Set<number>) {
         if (set.size === 0) return;
 
-        // All elements of sets that have 0 adjacent bombs are safe.
-        if (bombs === 0) {
-            set.forEach((k, _) => this.safeSpots.push(k));
-            set.forEach((id, _) => {
-                let cell = this.board.cells[id]
-                if (cell.isBomb) throw "A bomb was marked as safe!"
-            });
-            
+        // All sets with 0 adjacent bombs can be split.
+        if (bombs === 0 && set.size !== 1) {
+            set.forEach((k, _) => this.insert(0, new Set([k])));
             return;
         }
 
+        // All sets of size one and one adjacent bomb is a guaranteed bomb.
         if (bombs === 1 && set.size === 1) {
             for (let id of set.values()) {
                 console.log("Bomb:", id);
@@ -111,18 +96,19 @@ class Groups {
             }
         }
 
-        // Split sets where bombs and the size matches
+        // All sets where the number of bombs and element matches can be split.
         if (bombs > 1 && bombs === set.size) {
             set.forEach((k, _) => this.insert(1, new Set([k])));
             return;
         }
         
         // Handle inserted supersets.
-        for (let bombsExamined = bombs; bombsExamined >= 1; --bombsExamined) {
+        for (let bombsExamined = bombs; bombsExamined >= 0; --bombsExamined) {
             let i = this.indexBounds[bombsExamined][set.size] - 1;
+            let groupToExaminate = this.groups[bombsExamined]
             for (; i >= 0; --i) {
-                let unique = this.leftOuter(set, this.groups[bombsExamined][i])
-                if (unique.size === set.size - this.groups[bombsExamined][i].size) {
+                let unique = this.leftOuter(set, groupToExaminate[i])
+                if (unique.size === set.size - groupToExaminate[i].size) {
                     this.insert(bombs - bombsExamined, unique);
                     return;
                 }
@@ -137,14 +123,15 @@ class Groups {
         let insertQueue : Array<[number, Set<number>]> = new Array();
         for (let bombsExamined = bombs; bombsExamined < 9; ++bombsExamined) {
             let i = this.indexBounds[bombsExamined][set.size];
-            for (; i < this.groups[bombsExamined].length; ++i) {
-                let unique = this.leftOuter(this.groups[bombsExamined][i], set);
-                if (unique.size > this.groups[bombsExamined][i].size - set.size) continue;
+            let groupToExaminate = this.groups[bombsExamined]
+            for (; i < groupToExaminate.length; ++i) {
+                let unique = this.leftOuter(groupToExaminate[i], set);
+                if (unique.size > groupToExaminate[i].size - set.size) continue;
 
-                let setSize = this.groups[bombsExamined][i].size;
-                delete this.groups[bombsExamined][i];
-                this.groups[bombsExamined] = this.groups[bombsExamined].filter(n => 1);
-                for (let j = setSize; j < 9; ++j) --this.indexBounds[bombsExamined][j];
+                let groupSize = groupToExaminate[i].size;
+                delete groupToExaminate[i];
+                groupToExaminate = this.groups[bombsExamined] = groupToExaminate.filter(n => 1);
+                for (let j = groupSize; j < 9; ++j) --this.indexBounds[bombsExamined][j];
                 --i;
                 
                 insertQueue.push([bombsExamined - bombs, unique]);
@@ -157,11 +144,16 @@ class Groups {
 
     public popSafeCell() : number | null {
         // Top left is best move at the start of the game.
-        if (this.groups.every((group) => group.length === 0)) return 0;
+        if (!this.hasSuggested) {
+            this.hasSuggested = true;
+            if (this.groups.every((group) => group.length === 0)) return 0;
+        }
 
-        let out = this.safeSpots.shift();
-        if (out === undefined) return null;
-        return out;
+        let nextSet = this.groups[0].shift();
+        if (nextSet === undefined) return null;
+
+        for (let i = 1; i < 9; ++i) --this.indexBounds[0][i];
+        return [...nextSet.values()][0]
     }
 
     private leftOuter(a: Set<number>, b: Set<number>): Set<number> {
