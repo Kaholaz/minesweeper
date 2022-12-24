@@ -26,9 +26,23 @@ export class Engine {
     }
 
     public revealRevealable() {
-        let nextMove = null;
-        while ((nextMove = this.nextMove()) !== null) {
-            this.board.revealCell(nextMove);
+        let progress = true;
+        while (progress) {
+            progress = false;
+            while (true) {
+                let nextMove = this.nextMove();
+
+                // No safe cell
+                if (nextMove === null) break;
+
+                // Cell is revealed and progress is made
+                this.board.revealCell(nextMove);
+                progress = true;
+
+                // Don't loop on starting move
+                if (nextMove.x === 0 && nextMove.y === 0) break
+            }
+            // Recalculate moves
             this.initGroups();
         }
     }
