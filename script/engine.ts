@@ -1,5 +1,5 @@
 import { Board, Coordinate } from "./game/board.js";
-import { CellState } from "./game/cell.js";
+import { Cell, CellState } from "./game/cell.js";
 
 export class Engine {
     private board: Board;
@@ -18,7 +18,7 @@ export class Engine {
             
             let set = new Set(
                 this.board.getAdjacentCells(this.board.idToCoordinate(id))
-                .filter(c => this.board.getCell(c).getState() === CellState.NORMAL)
+                .filter(c => this.board.getCell(c).getState() !== CellState.REVEALED)
                 .map(c => {return this.board.coordinateToId(c)}));
             this.groups.insert(this.board.cells[id].adjacentBombs, set);
             if (this.groups.safeSpots.length) return;
@@ -55,7 +55,7 @@ class Groups {
         this.indexBounds = Array(9);
         for (let i = 0; i < 9; ++i) this.indexBounds[i] = [...[0, 0, 0, 0, 0, 0, 0, 0, 0]];
 
-        this.safeSpots = Array();
+        this.safeSpots = new Array();
     }
 
     public insert(bombs: number, set: Set<number>) {
@@ -73,9 +73,12 @@ class Groups {
         }
 
         if (bombs === 1 && set.size === 1) {
-            for (let cell of set.values()) {
-                console.log("Bomb: ", cell);
-                if (!this.board.cells[cell].isBomb) throw "Safe space marked as bomb!!!"
+            for (let id of set.values()) {
+                console.log("Bomb:", id);
+                let cell = this.board.cells[id]
+                
+                if (cell.getState() === CellState.NORMAL) this.board.flagCell(this.board.idToCoordinate(id));
+                if (!cell.isBomb) throw "Safe space marked as bomb!!!"
             }
         }
 
@@ -124,6 +127,7 @@ class Groups {
     }    
 
     public popSafeCell() : number | null {
+        // Top left is best move at the start of the game.
         if (this.groups.every((group) => group.length === 0)) return 0;
 
         let out = this.safeSpots.shift();

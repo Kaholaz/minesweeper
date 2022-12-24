@@ -173,7 +173,7 @@ export class Board {
         })
     }
 
-    private flagCell(coordinate: Coordinate) {
+    public flagCell(coordinate: Coordinate) {
         let cell = this.getCell(coordinate);
         if (![CellState.NORMAL, CellState.FLAGGED].includes(cell.getState())) {
             return;
