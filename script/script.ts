@@ -11,4 +11,8 @@ document.getElementById("reset")?.addEventListener("click", () => {
 })
 
 export let engine = new Engine(board);
-engine.revealRevealable();
+// Reveal functionality
+document.getElementById("reveal")?.addEventListener("click", () => {
+    engine = new Engine(board);
+    engine.revealRevealable();
+})

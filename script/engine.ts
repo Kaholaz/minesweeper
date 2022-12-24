@@ -28,6 +28,8 @@ export class Engine {
     public revealRevealable() {
         let progress = true;
         while (progress) {
+            // Recalculate moves
+            this.initGroups();
             progress = false;
             while (true) {
                 let nextMove = this.nextMove();
@@ -42,8 +44,6 @@ export class Engine {
                 // Don't loop on starting move
                 if (nextMove.x === 0 && nextMove.y === 0) break
             }
-            // Recalculate moves
-            this.initGroups();
         }
     }
 
