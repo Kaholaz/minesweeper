@@ -13,34 +13,51 @@ export class Engine {
     private initGroups() {
         this.groups = new Groups(this.board);
         for (let id = 0; id < this.board.cells.length; ++id) {
-            if (this.board.cells[id].getState() !== CellState.REVEALED) continue;
-            if (this.board.cells[id].adjacentBombs === 0) continue;
-            
-            let set = new Set(
-                this.board.getAdjacentCells(this.board.idToCoordinate(id))
-                .filter(c => this.board.getCell(c).getState() !== CellState.REVEALED)
-                .map(c => {return this.board.coordinateToId(c)}));
-            this.groups.insert(this.board.cells[id].adjacentBombs, set);
+            this.insertAdjacent(this.board.idToCoordinate(id))
         }
     }
 
+    private insertAdjacent(cell: Coordinate) {
+        if (this.board.getCell(cell).getState() !== CellState.REVEALED) return;
+        if (this.board.getCell(cell).adjacentBombs === 0) return;
+            
+
+        let set = new Set(
+            this.board.getAdjacentCells(cell)
+            .filter(c => this.board.getCell(c).getState() !== CellState.REVEALED)
+            .map(c => {return this.board.coordinateToId(c)}));
+        this.groups.insert(this.board.getCell(cell).adjacentBombs, set);
+    }
+
     public revealRevealable() {
-        this.initGroups();
-        let nextMove: Coordinate | null;
-        while ((nextMove = this.nextMove()) !== null) {
-            this.board.revealCell(nextMove);            
-            if (this.board.getCell(nextMove).adjacentBombs === 0) {
-                this.initGroups()
-                continue;
+        let progress = true;
+        while (progress) {
+            this.initGroups();
+
+            progress = false
+            let nextMove: Coordinate | null;
+            while ((nextMove = this.nextMove()) !== null) {
+                this.board.revealCell(nextMove);            
+                this.insertRecursively(nextMove);
+                progress = true
             }
-
-            let set = new Set(
-                this.board.getAdjacentCells(nextMove)
-                .filter(c => this.board.getCell(c).getState() !== CellState.REVEALED)
-                .map(c => {return this.board.coordinateToId(c)}));
-
-            this.groups.insert(this.board.getCell(nextMove).adjacentBombs, set);
         }
+    }
+
+    private insertRecursively(cell: Coordinate) {
+        [...this.findAdjacentToZero(cell, new Set())]
+            .map(c => this.board.idToCoordinate(c))
+            .forEach(c => this.insertAdjacent(c));
+    } 
+
+    private findAdjacentToZero(cell: Coordinate, seen: Set<number>) : Set<number> {
+        if (seen.has(this.board.coordinateToId(cell))) return seen;
+
+        seen.add(this.board.coordinateToId(cell))                
+        if (this.board.getCell(cell).adjacentBombs !== 0) return seen;
+
+        this.board.getAdjacentCells(cell).forEach((c) => {return this.findAdjacentToZero(c, seen)})
+        return seen;
     }
 
     public flagBombs() {
