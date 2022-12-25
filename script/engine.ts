@@ -119,7 +119,11 @@ export class Engine {
     private nextMove() : Coordinate | null {
         let cellId = this.groups.popSafeCell();
         if (cellId === null) return null;
-        return this.board.idToCoordinate(cellId);
+        
+        let coordinate = this.board.idToCoordinate(cellId);
+        if (this.board.getCell(coordinate).getState() === CellState.FLAGGED)
+            this.board.flagCell(coordinate);
+        return coordinate
     }
 }
 
